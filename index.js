@@ -1,134 +1,67 @@
-// Import dependencies
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const dbConnect = require("./src/config/dbConnect");
-const { spawn } = require("child_process");
+const dbConnect = require("../src/config/dbConnect");
+const serverless = require("serverless-http");
 
-// Load environment variables
+// Load env
 dotenv.config();
 
-// Validate required environment variables
-if (!process.env.MONGODB_URL || !process.env.PORT) {
-  console.error("❌ Missing required environment variables: MONGODB_URL and/or PORT");
-  process.exit(1);
-}
-
-// Initialize the Express app
+// Initialize app
 const app = express();
 
-// Configure CORS middleware
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000", // Allow frontend URL
-  })
-);
-
-// Middleware for parsing JSON and URL-encoded data
+// Middleware
+app.use(cors({
+  origin: "*"
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Connect to the database
+// Connect to DB
 (async () => {
   try {
     await dbConnect();
-    console.log("✅ Connected to the database successfully");
+    console.log("✅ Connected to DB");
   } catch (error) {
-    console.error("❌ Failed to connect to the database:", error.message);
-    process.exit(1);
+    console.error("❌ DB connection failed:", error.message);
   }
 })();
 
-// Import API routes
-const authRoutes = require("./src/routes/authRoutes");
-const userRoutes = require("./src/routes/userRoutes");
-const horseRoutes = require("./src/routes/horseRoutes");
-const actRoutes = require("./src/routes/ActRoutes");
-const prescriptionRoutes = require("./src/routes/prescriptionRoutes");
-const noteRoutes = require("./src/routes/noteRoutes");
-const reportRoutes = require("./src/routes/ReportRoutes");
-const pensionRoutes = require("./src/routes/pensionsRoutes");
-const invoiceRoutes = require("./src/routes/invoiceRoutes");
-const qualificationRoutes = require("./src/routes/qualificationRoutes");
-const transportRoutes = require("./src/routes/transportRoutes");
-const categoryRoutes = require("./src/routes/categoryRoutes");
-const lieuxRouter = require("./src/routes/lieux");
-const contactRoutes = require("./src/routes/ContactRoutes");
-const currentLocationRoutes = require("./src/routes/currentLocationRoute.js"); // Import the routes
-const analysesRouter = require("./src/routes/analyses");
+// Routes
+app.use("/api/auth", require("../src/routes/authRoutes"));
+app.use("/api/users", require("../src/routes/userRoutes"));
+app.use("/api/horses", require("../src/routes/horseRoutes"));
+app.use("/api/acts", require("../src/routes/ActRoutes"));
+app.use("/api/prescriptions", require("../src/routes/prescriptionRoutes"));
+app.use("/api/notes", require("../src/routes/noteRoutes"));
+app.use("/api/reports", require("../src/routes/ReportRoutes"));
+app.use("/api/pensions", require("../src/routes/pensionsRoutes"));
+app.use("/api/invoices", require("../src/routes/invoiceRoutes"));
+app.use("/api/qualifications", require("../src/routes/qualificationRoutes"));
+app.use("/api/transports", require("../src/routes/transportRoutes"));
+app.use("/api/categories", require("../src/routes/categoryRoutes"));
+app.use("/api/lieux", require("../src/routes/lieux"));
+app.use("/api/contacts", require("../src/routes/ContactRoutes"));
+app.use("/api/current-location", require("../src/routes/currentLocationRoute.js"));
+app.use("/api/analyses", require("../src/routes/analyses"));
 
-
-
-// Register API routes
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/horses", horseRoutes);
-app.use("/api/acts", actRoutes);
-app.use("/api/prescriptions", prescriptionRoutes);
-app.use("/api/notes", noteRoutes);
-app.use("/api/reports", reportRoutes);
-app.use("/api/pensions", pensionRoutes);
-app.use("/api/invoices", invoiceRoutes);
-app.use("/api/qualifications", qualificationRoutes);
-app.use("/api/transports", transportRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api/lieux", lieuxRouter);
-app.use("/api/contacts", contactRoutes);
-app.use('/api/current-location', currentLocationRoutes);
-app.use("/api/analyses", analysesRouter);
-
-
-
-
-
-// Prediction Route
-app.post('/predict', (req, res) => {
-  const features = req.body.features; // Get features from the request body
-
-  if (!Array.isArray(features)) {
-      return res.status(400).send({ error: 'Features should be an array' });
-  }
-
-  // Spawn a Python process
-  const pythonProcess = spawn("C:\\Users\\MSI\\AppData\\Local\\Programs\\Python\\Python310\\python.exe", ["C:\\Users\\MSI\\Desktop\\pfe\\backend\\predict.py"]);
-  
-  pythonProcess.stdin.write(JSON.stringify({ features }));
-  pythonProcess.stdin.end();
-
-  let dataBuffer = "";
-  pythonProcess.stdout.on("data", (data) => {
-      dataBuffer += data.toString();
-  });
-
-  pythonProcess.stderr.on("data", (data) => {
-      console.error(`Python Error: ${data.toString()}`);
-  });
-
-  pythonProcess.on("close", (code) => {
-      try {
-          const result = JSON.parse(dataBuffer);
-          res.json(result);
-      } catch (error) {
-          res.status(500).json({ error: "Error parsing Python output" });
-      }
-  });
+// ⚠️ NOTE: Python prediction (spawn) won't work on Vercel serverless
+app.post('/api/predict', (req, res) => {
+  return res.status(501).json({ error: "Python subprocesses are not supported on Vercel Serverless. Deploy separately (e.g., on Railway, Render, or Lambda)." });
 });
 
-// Handle 404 errors
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error("❌ An unexpected error occurred:", err.stack);
+  console.error("❌ Error:", err.stack);
   res.status(err.status || 500).json({
     message: err.message || "Internal Server Error",
   });
 });
 
-// Start the server
-const PORT = process.env.PORT || 7002;
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
-});
+// Export for serverless
+module.exports = serverless(app);

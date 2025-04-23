@@ -32,6 +32,8 @@
     "nodemon": "^3.1.9",
     "pdfkit": "^0.16.0",
     "save-dev": "^0.0.1-security",
-    "twilio": "^5.4.3"
+    "twilio": "^5.4.3",
+    "serverless-http": "^3.0.1"
   }
+
 }
