@@ -3,35 +3,38 @@ import joblib
 import json
 import numpy as np
 
-# Load the model
-MODEL_PATH = "C:\\Users\\MSI\\Desktop\\pfe\\backend\\model.joblib"
-
+# Load only the model
 try:
-    model = joblib.load(MODEL_PATH)
-except FileNotFoundError:
-    print(json.dumps({"error": f"Model file not found at {MODEL_PATH}"}))
-    sys.exit(1)
+    model = joblib.load("model.joblib")
 except Exception as e:
-    print(json.dumps({"error": f"Error loading model: {str(e)}"}))
+    print(json.dumps({"error": f"Model loading error: {str(e)}"}))
     sys.exit(1)
 
-# Read the input JSON data passed from Node.js
+# Label mapping based on how LabelEncoder likely encoded 'outcome'
+label_mapping = {
+    0: "died",
+    1: "euthanized",
+    2: "lived"
+}
+
+# Read and parse input
 try:
-    input_data = sys.stdin.read().strip()
-    if not input_data:
-        raise ValueError("No input data received")
+    input_data = json.loads(sys.stdin.read().strip())
+    raw_features = input_data['features']
 
-    data = json.loads(input_data)
-    features = np.array(data['features']).reshape(1, -1)
+    if len(raw_features) != 27:
+        raise ValueError(f"Expected 27 features, got {len(raw_features)}")
+
+    features = np.array(raw_features, dtype=np.float64).reshape(1, -1)
 except Exception as e:
-    print(json.dumps({"error": f"Invalid input data: {str(e)}"}))
+    print(json.dumps({"error": f"Input error: {str(e)}"}))
     sys.exit(1)
 
-# Make predictions
+# Predict
 try:
     prediction = model.predict(features)
-    output = {'prediction': int(prediction[0])}
-    print(json.dumps(output))
+    label = label_mapping.get(int(prediction[0]), "Unknown")
+    print(json.dumps({"prediction": label}))
 except Exception as e:
     print(json.dumps({"error": f"Prediction error: {str(e)}"}))
     sys.exit(1)
