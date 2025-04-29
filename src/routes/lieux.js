@@ -5,7 +5,7 @@ const { Parser } = require("json2csv");
 const ExcelJS = require("exceljs");
 const mongoose = require("mongoose");
 const Lieu = require("../models/Lieu");
-const Horse = require("../models/Horse"); // Import the Horse model
+const Horse = require("../models/Horse");
 
 const router = express.Router();
 
@@ -18,7 +18,6 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    // Validate subLocations if provided
     if (subLocations) {
       for (let subLocation of subLocations) {
         const { name, type, capacity, dimensions } = subLocation;
@@ -37,7 +36,6 @@ router.post("/", async (req, res) => {
 });
 
 // 📌 2️⃣ Update a location
-// 📌 Update a location
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -49,28 +47,17 @@ router.put("/:id", async (req, res) => {
 
     const updatedLieu = await Lieu.findByIdAndUpdate(
       id,
-      {
-        name,
-        address,
-        postalCode,
-        city,
-        type,
-        capacity,
-        updatedAt: Date.now()
-      },
+      { name, address, postalCode, city, type, capacity, updatedAt: Date.now() },
       { new: true }
     );
 
-    if (!updatedLieu) {
-      return res.status(404).json({ error: "Lieu not found" });
-    }
+    if (!updatedLieu) return res.status(404).json({ error: "Lieu not found" });
 
     res.json(updatedLieu);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 // 📌 3️⃣ Delete a location
 router.delete("/:id", async (req, res) => {
@@ -81,9 +68,7 @@ router.delete("/:id", async (req, res) => {
     }
 
     const lieu = await Lieu.findByIdAndDelete(id);
-    if (!lieu) {
-      return res.status(404).json({ error: "Lieu not found" });
-    }
+    if (!lieu) return res.status(404).json({ error: "Lieu not found" });
 
     res.json({ message: "Lieu deleted successfully" });
   } catch (error) {
@@ -91,6 +76,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// 📌 4️⃣ Archive a location
 router.patch("/:id/archive", async (req, res) => {
   try {
     const { id } = req.params;
@@ -105,18 +91,13 @@ router.patch("/:id/archive", async (req, res) => {
       { new: true }
     );
 
-    if (!updated) {
-      return res.status(404).json({ error: "Lieu not found" });
-    }
+    if (!updated) return res.status(404).json({ error: "Lieu not found" });
 
     res.json({ message: "Lieu archived successfully", lieu: updated });
   } catch (error) {
-    console.error("❌ Archive Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
-
-
 
 // 📌 5️⃣ Export Lieu Data
 router.get("/:id/export", async (req, res) => {
@@ -126,19 +107,13 @@ router.get("/:id/export", async (req, res) => {
       return res.status(400).json({ error: "Invalid ID format" });
     }
 
-    const { format } = req.query; // Supports PDF, CSV, Excel
+    const { format } = req.query;
     const lieu = await Lieu.findById(id);
-    if (!lieu) {
-      return res.status(404).json({ error: "Lieu not found" });
-    }
+    if (!lieu) return res.status(404).json({ error: "Lieu not found" });
 
-    // Ensure export directory exists
     const exportDir = "./exports";
-    if (!fs.existsSync(exportDir)) {
-      fs.mkdirSync(exportDir);
-    }
+    if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir);
 
-    // 📌 Export as PDF
     if (format === "pdf") {
       const doc = new PDFDocument();
       const filePath = `${exportDir}/lieu_${id}.pdf`;
@@ -153,9 +128,9 @@ router.get("/:id/export", async (req, res) => {
       doc.text(`Capacité: ${lieu.capacity}`);
       doc.text(`Sous-localisations:`);
 
-      lieu.subLocations.forEach((subLocation, index) => {
-        doc.text(`${index + 1}. ${subLocation.name} - ${subLocation.type} - Capacity: ${subLocation.capacity}`);
-        doc.text(`   Dimensions: ${subLocation.dimensions.length}x${subLocation.dimensions.width}x${subLocation.dimensions.height}`);
+      lieu.subLocations.forEach((s, i) => {
+        doc.text(`${i + 1}. ${s.name} - ${s.type} - Capacity: ${s.capacity}`);
+        doc.text(`   Dimensions: ${s.dimensions.length}x${s.dimensions.width}x${s.dimensions.height}`);
       });
 
       doc.end();
@@ -163,18 +138,17 @@ router.get("/:id/export", async (req, res) => {
       return;
     }
 
-    // 📌 Export as CSV
     if (format === "csv") {
       const fields = ["name", "address", "city", "type", "capacity", "subLocations"];
-      const subLocationData = lieu.subLocations.map(subLocation => ({
-        ...subLocation,
-        dimensions: `${subLocation.dimensions.length}x${subLocation.dimensions.width}x${subLocation.dimensions.height}`
+      const subLocationData = lieu.subLocations.map(s => ({
+        ...s,
+        dimensions: `${s.dimensions.length}x${s.dimensions.width}x${s.dimensions.height}`
       }));
 
       const parser = new Parser({ fields });
       const csv = parser.parse({
         ...lieu.toObject(),
-        subLocations: subLocationData.map(subLocation => `${subLocation.name} - ${subLocation.type}`).join(", ")
+        subLocations: subLocationData.map(s => `${s.name} - ${s.type}`).join(", ")
       });
 
       res.header("Content-Type", "text/csv");
@@ -182,7 +156,6 @@ router.get("/:id/export", async (req, res) => {
       return res.send(csv);
     }
 
-    // 📌 Export as Excel
     if (format === "excel") {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Lieu");
@@ -194,7 +167,7 @@ router.get("/:id/export", async (req, res) => {
         lieu.city,
         lieu.type,
         lieu.capacity,
-        lieu.subLocations.map(subLocation => `${subLocation.name} - ${subLocation.type}`).join(", ")
+        lieu.subLocations.map(s => `${s.name} - ${s.type}`).join(", ")
       ]);
 
       const filePath = `${exportDir}/lieu_${id}.xlsx`;
@@ -208,10 +181,8 @@ router.get("/:id/export", async (req, res) => {
   }
 });
 
-
-
 // ✅ GET all locations
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const lieux = await Lieu.find();
     res.json(lieux);
@@ -220,32 +191,22 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 📌 Assign a horse to a location by updating only the Lieu model
+// 📌 Assign a horse to a location
 router.post("/assign", async (req, res) => {
   try {
     const { horseId, lieuId } = req.body;
 
-    // Validate IDs
     if (!mongoose.Types.ObjectId.isValid(horseId) || !mongoose.Types.ObjectId.isValid(lieuId)) {
       return res.status(400).json({ error: "Invalid horseId or lieuId" });
     }
 
-    // Make sure the horse exists
     const horse = await Horse.findById(horseId);
-    if (!horse) {
-      return res.status(404).json({ error: "Horse not found" });
-    }
+    if (!horse) return res.status(404).json({ error: "Horse not found" });
 
-    // Find the location
     const lieu = await Lieu.findById(lieuId);
-    if (!lieu) {
-      return res.status(404).json({ error: "Lieu not found" });
-    }
+    if (!lieu) return res.status(404).json({ error: "Lieu not found" });
 
-    // Ensure the horses array exists
     if (!lieu.horses) lieu.horses = [];
-
-    // Add the horse to the location only if it's not already there
     if (!lieu.horses.includes(horse._id)) {
       lieu.horses.push(horse._id);
       await lieu.save();
@@ -256,11 +217,8 @@ router.post("/assign", async (req, res) => {
       lieu,
     });
   } catch (error) {
-    console.error("❌ Assignment Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
-
-
 
 module.exports = router;

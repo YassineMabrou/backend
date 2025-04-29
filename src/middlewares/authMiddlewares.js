@@ -1,27 +1,37 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/user");
+const Admin = require("../models/Admin");
 
-const verifyToken = (req, res, next) => {
-  // Extract the Authorization header
+const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.Authorization || req.headers.authorization;
 
-  // Check if the Authorization header exists and starts with "Bearer"
   if (authHeader && authHeader.startsWith("Bearer ")) {
-    const token = authHeader.split(" ")[1]; // Extract the token after "Bearer"
+    const token = authHeader.split(" ")[1];
 
     try {
-      // Verify the token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = decoded; // Attach the decoded user data to the request object
-      console.log("The decoded user is:", req.user);
 
-      next(); // Proceed to the next middleware or route handler
+      // Check for user in both collections
+      const user = await User.findById(decoded.id);
+      const admin = await Admin.findById(decoded.id);
+
+      if (user) {
+        req.user = user;
+        req.role = "user";
+      } else if (admin) {
+        req.user = admin;
+        req.role = "admin";
+      } else {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      console.log("Decoded user is:", req.user);
+      next();
     } catch (err) {
-      // Handle token verification failure
       console.error("Token verification error:", err.message);
       return res.status(401).json({ message: "Invalid token" });
     }
   } else {
-    // If the Authorization header is missing or not formatted correctly
     return res.status(401).json({ message: "No token, authorization denied" });
   }
 };

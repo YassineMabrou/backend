@@ -1,23 +1,21 @@
 const express = require("express");
 const multer = require("multer");
 const Analysis = require("../models/Analyses");
-
 const router = express.Router();
 
-// 📌 Configuration de multer pour l'upload des fichiers PDF
+// 📌 Multer config for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/"); // 📂 Dossier où seront stockés les fichiers
+    cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
-
 const upload = multer({ storage });
 
 /**
- * ➤ 📌 Récupérer toutes les analyses avec filtres (cheval, acte)
+ * ➤ 📌 Get all analyses (optional filters)
  * GET /api/analyses
  */
 router.get("/", async (req, res) => {
@@ -35,13 +33,12 @@ router.get("/", async (req, res) => {
 });
 
 /**
- * ➤ 📌 Ajouter une nouvelle analyse
+ * ➤ 📌 Add a new analysis
  * POST /api/analyses
  */
 router.post("/", upload.single("file"), async (req, res) => {
   try {
     const data = req.body;
-
     if (req.file) {
       data.file = `/uploads/${req.file.filename}`;
     }
@@ -55,7 +52,7 @@ router.post("/", upload.single("file"), async (req, res) => {
 });
 
 /**
- * ➤ 📌 Modifier une analyse existante
+ * ➤ 📌 Update an analysis
  * PUT /api/analyses/:id
  */
 router.put("/:id", async (req, res) => {
@@ -72,7 +69,7 @@ router.put("/:id", async (req, res) => {
 });
 
 /**
- * ➤ 📌 Supprimer une analyse
+ * ➤ 📌 Delete an analysis
  * DELETE /api/analyses/:id
  */
 router.delete("/:id", async (req, res) => {
@@ -85,7 +82,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 /**
- * ➤ 📌 Upload d'un fichier PDF des résultats de laboratoire
+ * ➤ 📌 Upload PDF only (lab results etc.)
  * POST /api/analyses/upload
  */
 router.post("/upload", upload.single("file"), (req, res) => {
@@ -95,5 +92,4 @@ router.post("/upload", upload.single("file"), (req, res) => {
   res.json({ fileUrl: `/uploads/${req.file.filename}` });
 });
 
-// ✅ Export with CommonJS
 module.exports = router;

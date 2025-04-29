@@ -2,6 +2,7 @@ import sys
 import joblib
 import json
 import numpy as np
+import warnings
 
 # Load only the model
 try:
@@ -30,9 +31,12 @@ except Exception as e:
     print(json.dumps({"error": f"Input error: {str(e)}"}))
     sys.exit(1)
 
-# Predict
+# Predict (with warnings suppressed)
 try:
-    prediction = model.predict(features)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        prediction = model.predict(features)
+
     label = label_mapping.get(int(prediction[0]), "Unknown")
     print(json.dumps({"prediction": label}))
 except Exception as e:

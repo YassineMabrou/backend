@@ -1,19 +1,15 @@
 const mongoose = require("mongoose");
+const dotenv = require("dotenv");
 
-mongoose.set('strictQuery', true); // suppress warning
+dotenv.config();
 
 const dbConnect = async () => {
-  const uri = process.env.MONGODB_URL;
-  if (!uri) {
-    throw new Error("❌ Missing MONGODB_URL environment variable");
-  }
-
   try {
-    await mongoose.connect(uri);
-    console.log("✅ Connected to MongoDB");
-  } catch (err) {
-    console.error("❌ Database connection error:", err.message);
-    throw err;
+    await mongoose.connect(process.env.MONGODB_URL);
+    console.log("✅ Connected to the database successfully");
+  } catch (error) {
+    console.error("❌ Database connection error:", error);
+    process.exit(1);
   }
 };
 

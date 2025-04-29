@@ -1,13 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const verifyToken = require("../middlewares/authMiddlewares");
 const authorizeRoles = require("../middlewares/roleMiddleware");
 
 // Route accessible only by admin
 router.get(
   "/admin",
-  verifyToken, // Verify token first
-  authorizeRoles("admin"), // Check for admin role
+  authorizeRoles("admin"), // Check for admin role only
   (req, res) => {
     res.status(200).json({ message: "Welcome Admin!" });
   }
@@ -16,8 +14,7 @@ router.get(
 // Route accessible only by user
 router.get(
   "/user",
-  verifyToken, // Verify token first
-  authorizeRoles("user"), // Check for user role
+  authorizeRoles("user"), // Check for user role only
   (req, res) => {
     res.status(200).json({ message: "Welcome User!" });
   }

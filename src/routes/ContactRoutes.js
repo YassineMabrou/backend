@@ -28,7 +28,6 @@ router.put("/:id", async (req, res) => {
     }
 
     const updatedContact = await Contact.findByIdAndUpdate(id, req.body, { new: true });
-
     if (!updatedContact) {
       return res.status(404).json({ error: "Contact non trouvé" });
     }
@@ -50,9 +49,7 @@ router.delete("/:id", async (req, res) => {
     }
 
     const deletedContact = await Contact.findByIdAndDelete(id);
-    if (!deletedContact) {
-      return res.status(404).json({ error: "Contact non trouvé" });
-    }
+    if (!deletedContact) return res.status(404).json({ error: "Contact non trouvé" });
 
     res.json({ message: "Contact supprimé avec succès" });
   } catch (error) {
@@ -61,12 +58,12 @@ router.delete("/:id", async (req, res) => {
 });
 
 /**
- * 📌 4. Rechercher un contact (Recherche avancée)
+ * 📌 4. Rechercher un contact
  */
 router.get("/search", async (req, res) => {
   try {
     const { name, role, availability } = req.query;
-    
+
     let query = {};
     if (name) query.name = { $regex: new RegExp(name, "i") };
     if (role) query.role = { $regex: new RegExp(role, "i") };
@@ -78,9 +75,19 @@ router.get("/search", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// 📌 Get all contacts with populated horses
+router.get('/contacts', async (req, res) => {
+  try {
+    const contacts = await Contact.find().populate('horses', 'name'); // 🆕 Populate horses with only 'name' field
+    res.json(contacts);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch contacts' });
+  }
+});
 
 /**
- * 📌 5. Associer des contacts aux chevaux (Ajouter un cheval à un contact)
+ * 📌 5. Associer des contacts aux chevaux
  */
 router.post("/:id/assign-horse", async (req, res) => {
   try {
@@ -108,10 +115,9 @@ router.post("/:id/assign-horse", async (req, res) => {
 });
 
 /**
- * 📌 Ajouter une intervention à un contact (Historique des soins et actions)
+ * 📌 Ajouter une intervention à un contact
  */
 router.post("/:id/intervention", async (req, res) => {
-  console.log("✅ Intervention Route Hit!");
   try {
     const id = req.params.id.trim();
     const { horseName, type, description, date } = req.body;
@@ -162,6 +168,7 @@ router.get("/:id/interventions", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 /**
  * 📌 Obtenir tous les contacts
  */
@@ -173,4 +180,5 @@ router.get("/", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 module.exports = router;
