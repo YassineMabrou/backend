@@ -16,8 +16,8 @@ exports.addSingleHorse = async (req, res) => {
 // Add horses from a CSV file
 exports.addHorsesFromCSV = async (req, res) => {
   const filePath = req.file.path;
-
   const horses = [];
+
   try {
     fs.createReadStream(filePath)
       .pipe(csvParser())
@@ -31,7 +31,7 @@ exports.addHorsesFromCSV = async (req, res) => {
         } catch (error) {
           res.status(400).json({ message: 'Failed to add horses from CSV', error: error.message });
         } finally {
-          fs.unlinkSync(filePath); // Clean up the uploaded file
+          fs.unlinkSync(filePath);
         }
       });
   } catch (error) {
