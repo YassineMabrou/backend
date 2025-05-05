@@ -75,16 +75,6 @@ router.get("/search", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// 📌 Get all contacts with populated horses
-router.get('/contacts', async (req, res) => {
-  try {
-    const contacts = await Contact.find().populate('horses', 'name'); // 🆕 Populate horses with only 'name' field
-    res.json(contacts);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch contacts' });
-  }
-});
 
 /**
  * 📌 5. Associer des contacts aux chevaux

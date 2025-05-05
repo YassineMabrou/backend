@@ -5,7 +5,6 @@ const dotenv = require("dotenv");
 const dbConnect = require("../src/config/dbConnect");
 const { spawn } = require("child_process");
 const path = require("path");
-const dgram = require("dgram");
 
 // Load environment variables
 dotenv.config();
@@ -41,7 +40,7 @@ app.use(express.urlencoded({ extended: true }));
   }
 })();
 
-// Import API routes
+// Import API routes with corrected paths
 const authRoutes = require("../src/routes/authRoutes");
 const userRoutes = require("../src/routes/userRoutes");
 const horseRoutes = require("../src/routes/horseRoutes");
@@ -60,6 +59,7 @@ const currentLocationRoutes = require("../src/routes/currentLocationRoute");
 const analysesRouter = require("../src/routes/analyses");
 const Userr = require("../src/routes/users");
 
+
 // Register API routes with /api prefix
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -77,29 +77,13 @@ app.use("/api/lieux", lieuxRouter);
 app.use("/api/contacts", contactRoutes);
 app.use("/api/current-location", currentLocationRoutes);
 app.use("/api/analyses", analysesRouter);
-app.use("/api/users", Userr); // You might want to clarify why users is registered twice
-
-// UDP client setup
-const udpClient = dgram.createSocket("udp4");
-
-// Function to send data to ESP32
-function sendAlertToESP32(horseId, status) {
-  const esp32Ip = "192.168.1.20"; // Replace with your ESP32 IP address
-  const esp32Port = 1234;         // ESP32 listening UDP port
-  const message = JSON.stringify({ horse: horseId, status: status });
-
-  udpClient.send(message, esp32Port, esp32Ip, (err) => {
-    if (err) console.error("Error sending UDP message to ESP32:", err);
-    else console.log("✅ Alert sent to ESP32:", message);
-  });
-}
-
-// Prediction endpoint
+app.use("/api/users", Userr);
+// ✅ Prediction Route using Python subprocess
 app.post("/api/predict", (req, res) => {
-  const { features, horseId } = req.body;
+  const features = req.body.features;
 
-  if (!Array.isArray(features) || !horseId) {
-    return res.status(400).json({ error: "Features should be an array and horseId is required" });
+  if (!Array.isArray(features)) {
+    return res.status(400).json({ error: "Features should be an array" });
   }
 
   const pythonPath = "C:\\Users\\MSI\\AppData\\Local\\Programs\\Python\\Python310\\python.exe";
@@ -132,16 +116,24 @@ app.post("/api/predict", (req, res) => {
 
     try {
       const result = JSON.parse(dataBuffer);
-
-      if (result.prediction === "died" || result.prediction === "euthanized") {
-        sendAlertToESP32(horseId, result.prediction);
-      }
-
       res.json(result);
     } catch (err) {
       console.error("❌ Failed to parse Python output:", err);
       res.status(500).json({ error: "Error parsing Python output" });
     }
+  });
+});
+
+// Handle 404 errors
+app.use((req, res) => {
+  res.status(404).json({ message: "Route not found" });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error("❌ An unexpected error occurred:", err.stack);
+  res.status(err.status || 500).json({
+    message: err.message || "Internal Server Error",
   });
 });
 
