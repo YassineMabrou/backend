@@ -40,7 +40,7 @@ app.use(express.urlencoded({ extended: true }));
   }
 })();
 
-// Import API routes with corrected paths
+// Import API routes
 const authRoutes = require("../src/routes/authRoutes");
 const userRoutes = require("../src/routes/userRoutes");
 const horseRoutes = require("../src/routes/horseRoutes");
@@ -59,25 +59,24 @@ const currentLocationRoutes = require("../src/routes/currentLocationRoute");
 const analysesRouter = require("../src/routes/analyses");
 const Userr = require("../src/routes/users");
 
-
-// Register API routes with /api prefix
-// Register API routes WITHOUT /api prefix (NGINX will handle it)
-app.use("/auth", authRoutes);
-app.use("/users", userRoutes);
-app.use("/horses", horseRoutes);
-app.use("/acts", actRoutes);
-app.use("/prescriptions", prescriptionRoutes);
-app.use("/notes", noteRoutes);
-app.use("/reports", reportRoutes);
-app.use("/pensions", pensionRoutes);
-app.use("/invoices", invoiceRoutes);
-app.use("/qualifications", qualificationRoutes);
-app.use("/transports", transportRoutes);
-app.use("/categories", categoryRoutes);
-app.use("/lieux", lieuxRouter);
-app.use("/contacts", contactRoutes);
-app.use("/current-location", currentLocationRoutes);
-app.use("/analyses", analysesRouter);
+// ✅ Register API routes with /api prefix
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/horses", horseRoutes);
+app.use("/api/acts", actRoutes);
+app.use("/api/prescriptions", prescriptionRoutes);
+app.use("/api/notes", noteRoutes);
+app.use("/api/reports", reportRoutes);
+app.use("/api/pensions", pensionRoutes);
+app.use("/api/invoices", invoiceRoutes);
+app.use("/api/qualifications", qualificationRoutes);
+app.use("/api/transports", transportRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/lieux", lieuxRouter);
+app.use("/api/contacts", contactRoutes);
+app.use("/api/current-location", currentLocationRoutes);
+app.use("/api/analyses", analysesRouter);
+app.use("/api/userr", Userr); // Consider renaming to /users if it is the same
 
 // ✅ Prediction Route using Python subprocess
 app.post("/api/predict", (req, res) => {
@@ -104,7 +103,7 @@ app.post("/api/predict", (req, res) => {
 
   pythonProcess.stderr.on("data", (data) => {
     errorBuffer += data.toString();
-    console.error(`🐍 Python stderr: ${errorBuffer}`);
+    console.error("🐍 Python stderr:", errorBuffer);
   });
 
   pythonProcess.on("close", (code) => {
