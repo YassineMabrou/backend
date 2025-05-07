@@ -22,6 +22,7 @@ const app = express();
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    credentials: true,
   })
 );
 
@@ -77,6 +78,11 @@ app.use("/api/contacts", contactRoutes);
 app.use("/api/current-location", currentLocationRoutes);
 app.use("/api/analyses", analysesRouter);
 app.use("/api/users", Userr);
+
+// ✅ Basic root route to prevent 500 error at "/"
+app.get("/", (req, res) => {
+  res.send("API is running");
+});
 
 // ✅ Prediction Route using Python subprocess
 app.post("/api/predict", (req, res) => {
@@ -137,8 +143,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start the server — ✅ binds to all interfaces
+// Start the server
 const PORT = process.env.PORT || 7002;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
 });
