@@ -61,23 +61,24 @@ const Userr = require("../src/routes/users");
 
 
 // Register API routes with /api prefix
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/horses", horseRoutes);
-app.use("/api/acts", actRoutes);
-app.use("/api/prescriptions", prescriptionRoutes);
-app.use("/api/notes", noteRoutes);
-app.use("/api/reports", reportRoutes);
-app.use("/api/pensions", pensionRoutes);
-app.use("/api/invoices", invoiceRoutes);
-app.use("/api/qualifications", qualificationRoutes);
-app.use("/api/transports", transportRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api/lieux", lieuxRouter);
-app.use("/api/contacts", contactRoutes);
-app.use("/api/current-location", currentLocationRoutes);
-app.use("/api/analyses", analysesRouter);
-app.use("/api/users", Userr);
+// Register API routes WITHOUT /api prefix (NGINX will handle it)
+app.use("/auth", authRoutes);
+app.use("/users", userRoutes);
+app.use("/horses", horseRoutes);
+app.use("/acts", actRoutes);
+app.use("/prescriptions", prescriptionRoutes);
+app.use("/notes", noteRoutes);
+app.use("/reports", reportRoutes);
+app.use("/pensions", pensionRoutes);
+app.use("/invoices", invoiceRoutes);
+app.use("/qualifications", qualificationRoutes);
+app.use("/transports", transportRoutes);
+app.use("/categories", categoryRoutes);
+app.use("/lieux", lieuxRouter);
+app.use("/contacts", contactRoutes);
+app.use("/current-location", currentLocationRoutes);
+app.use("/analyses", analysesRouter);
+
 // ✅ Prediction Route using Python subprocess
 app.post("/api/predict", (req, res) => {
   const features = req.body.features;
