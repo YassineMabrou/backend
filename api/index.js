@@ -59,6 +59,7 @@ const currentLocationRoutes = require("../src/routes/currentLocationRoute");
 const analysesRouter = require("../src/routes/analyses");
 const Userr = require("../src/routes/users");
 
+
 // Register API routes with /api prefix
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -77,7 +78,6 @@ app.use("/api/contacts", contactRoutes);
 app.use("/api/current-location", currentLocationRoutes);
 app.use("/api/analyses", analysesRouter);
 app.use("/api/users", Userr);
-
 // ✅ Prediction Route using Python subprocess
 app.post("/api/predict", (req, res) => {
   const features = req.body.features;
@@ -137,8 +137,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start the server — ✅ binds to all interfaces
+// Start the server
 const PORT = process.env.PORT || 7002;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
