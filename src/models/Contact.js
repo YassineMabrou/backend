@@ -8,15 +8,15 @@ const ContactSchema = new mongoose.Schema(
     phone: { type: String, required: true },
     availability: { type: String, required: true },
 
-    // 📌 List of horses assigned to this contact
+    // 📌 List of horses assigned to this contact (still as ObjectId if needed)
     horses: [{ type: mongoose.Schema.Types.ObjectId, ref: "Horse" }],
 
     // 📌 Historique des interventions (List of actions performed by the contact)
     interventions: [
       {
         date: { type: Date, default: Date.now }, // Date of the intervention
-        horse: { type: mongoose.Schema.Types.ObjectId, ref: "Horse" }, // Horse involved
-        type: { type: String, required: true }, // Type of intervention (e.g., "Medical Checkup", "Training", etc.)
+        horseName: { type: String },             // <-- now storing horse name as string
+        type: { type: String, required: true },  // Type of intervention (e.g., "Medical Checkup", "Training", etc.)
         description: { type: String, required: true }, // Details about the intervention
       },
     ],

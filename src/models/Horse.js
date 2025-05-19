@@ -3,18 +3,25 @@ const mongoose = require("mongoose");
 const horseSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true,
-    unique: true,
+     required: true,
+    unique: true, 
   },
   coatColor: {
     type: String,
     required: true,
   },
-  sireNumber: {
+ sireNumber: {
     type: String,
     required: true,
     unique: true,
+    match: [/^\d{9}$/, 'SIRE number must be exactly 9 digits']
   },
+  sireKey: {
+  type: String,
+  required: true,
+  unique: true,
+  match: [/^\d{15}$/, 'Clé SIRE (UELN) invalide (15 chiffres attendus)']
+},
   birthDate: {
     type: Date,
     required: true,

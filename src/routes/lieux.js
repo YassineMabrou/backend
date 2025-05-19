@@ -9,24 +9,32 @@ const Horse = require("../models/Horse");
 
 const router = express.Router();
 
-// 📌 1️⃣ Add a new location
+// 📌 1️⃣ Add a new location with sub-locations
 router.post("/", async (req, res) => {
   try {
     const { name, address, postalCode, city, type, subLocations, capacity } = req.body;
 
+    // Validate required fields
     if (!name || !address || !postalCode || !city || !type || !capacity) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
+    // Validate sub-locations if provided
     if (subLocations) {
       for (let subLocation of subLocations) {
         const { name, type, capacity, dimensions } = subLocation;
         if (!name || !type || !capacity || !dimensions) {
           return res.status(400).json({ error: "All sub-location fields are required" });
         }
+
+        // Ensure dimensions are in the format 'lengthxwidthxheight'
+        if (!dimensions.match(/\d+x\d+x\d+/)) {
+          return res.status(400).json({ error: "Dimensions must be in the format 'lengthxwidthxheight'" });
+        }
       }
     }
 
+    // Create the new location
     const newLieu = new Lieu({ name, address, postalCode, city, type, subLocations, capacity });
     await newLieu.save();
     res.status(201).json(newLieu);
@@ -35,7 +43,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// 📌 2️⃣ Update a location
+// 📌 2️⃣ Update a location, including sub-locations
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -43,11 +51,25 @@ router.put("/:id", async (req, res) => {
       return res.status(400).json({ error: "Invalid ID format" });
     }
 
-    const { name, address, postalCode, city, type, capacity } = req.body;
+    const { name, address, postalCode, city, type, capacity, subLocations } = req.body;
+
+    // Validate sub-locations
+    if (subLocations) {
+      for (let subLocation of subLocations) {
+        const { name, type, capacity, dimensions } = subLocation;
+        if (!name || !type || !capacity || !dimensions) {
+          return res.status(400).json({ error: "All sub-location fields are required" });
+        }
+
+        if (!dimensions.match(/\d+x\d+x\d+/)) {
+          return res.status(400).json({ error: "Dimensions must be in the format 'lengthxwidthxheight'" });
+        }
+      }
+    }
 
     const updatedLieu = await Lieu.findByIdAndUpdate(
       id,
-      { name, address, postalCode, city, type, capacity, updatedAt: Date.now() },
+      { name, address, postalCode, city, type, capacity, subLocations, updatedAt: Date.now() },
       { new: true }
     );
 
@@ -59,7 +81,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// 📌 3️⃣ Delete a location
+// 📌 3️⃣ Delete a location, including its sub-locations
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -99,7 +121,7 @@ router.patch("/:id/archive", async (req, res) => {
   }
 });
 
-// 📌 5️⃣ Export Lieu Data
+// 📌 5️⃣ Export Lieu Data (PDF, CSV, Excel)
 router.get("/:id/export", async (req, res) => {
   try {
     const { id } = req.params;
@@ -114,6 +136,7 @@ router.get("/:id/export", async (req, res) => {
     const exportDir = "./exports";
     if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir);
 
+    // PDF Export
     if (format === "pdf") {
       const doc = new PDFDocument();
       const filePath = `${exportDir}/lieu_${id}.pdf`;
@@ -128,27 +151,33 @@ router.get("/:id/export", async (req, res) => {
       doc.text(`Capacité: ${lieu.capacity}`);
       doc.text(`Sous-localisations:`);
 
-      lieu.subLocations.forEach((s, i) => {
-        doc.text(`${i + 1}. ${s.name} - ${s.type} - Capacity: ${s.capacity}`);
-        doc.text(`   Dimensions: ${s.dimensions.length}x${s.dimensions.width}x${s.dimensions.height}`);
-      });
+      if (Array.isArray(lieu.subLocations)) {
+        lieu.subLocations.forEach((s, i) => {
+          const d = s.dimensions || {};
+          doc.text(`${i + 1}. ${s.name} - ${s.type} - Capacity: ${s.capacity}`);
+          doc.text(`   Dimensions: ${d.length || "?"}x${d.width || "?"}x${d.height || "?"}`);
+        });
+      } else {
+        doc.text("   Aucune sous-localisation trouvée.");
+      }
 
       doc.end();
       stream.on("finish", () => res.download(filePath));
       return;
     }
 
+    // CSV Export
     if (format === "csv") {
       const fields = ["name", "address", "city", "type", "capacity", "subLocations"];
-      const subLocationData = lieu.subLocations.map(s => ({
+      const subLocationData = (lieu.subLocations || []).map((s) => ({
         ...s,
-        dimensions: `${s.dimensions.length}x${s.dimensions.width}x${s.dimensions.height}`
+        dimensions: `${s?.dimensions?.length || "?"}x${s?.dimensions?.width || "?"}x${s?.dimensions?.height || "?"}`,
       }));
 
       const parser = new Parser({ fields });
       const csv = parser.parse({
         ...lieu.toObject(),
-        subLocations: subLocationData.map(s => `${s.name} - ${s.type}`).join(", ")
+        subLocations: subLocationData.map((s) => `${s.name} - ${s.type}`).join(", "),
       });
 
       res.header("Content-Type", "text/csv");
@@ -156,6 +185,7 @@ router.get("/:id/export", async (req, res) => {
       return res.send(csv);
     }
 
+    // Excel Export
     if (format === "excel") {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Lieu");
@@ -167,7 +197,7 @@ router.get("/:id/export", async (req, res) => {
         lieu.city,
         lieu.type,
         lieu.capacity,
-        lieu.subLocations.map(s => `${s.name} - ${s.type}`).join(", ")
+        (lieu.subLocations || []).map((s) => `${s.name} - ${s.type}`).join(", "),
       ]);
 
       const filePath = `${exportDir}/lieu_${id}.xlsx`;
@@ -177,6 +207,7 @@ router.get("/:id/export", async (req, res) => {
 
     return res.status(400).json({ error: "Format not supported" });
   } catch (error) {
+    console.error("❌ Export error:", error);
     res.status(500).json({ error: error.message });
   }
 });

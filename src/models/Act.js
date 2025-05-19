@@ -7,19 +7,17 @@ const ActSchema = new mongoose.Schema({
   plannedDate: { type: Date },
   observations: { type: String },
   results: { type: String },
-  attachments: [{ type: String }],
-  comments: [{ 
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    text: { type: String },
-    date: { type: Date, default: Date.now }
-  }],
+  // ✅ Update attachments to single string (optional override if not multiple)
+  attachment: { type: String },
+  // ✅ Update comments to single string instead of array of objects
+  comments: { type: String },
+
   reminders: { type: Boolean, default: false },
   reminderDate: { type: Date },
   recurrencePattern: { type: String, enum: ['daily', 'weekly', 'monthly'], default: 'daily' },
   notificationSent: { type: Boolean, default: false },
   notificationMethod: { type: [String], enum: ['email', 'sms'], default: ['email'] },
 
-  // New fields for explicit notification contact details
   notificationEmail: { type: String },
   notificationPhoneNumber: { type: String },
 

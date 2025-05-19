@@ -1,14 +1,27 @@
 const Horse = require('../models/Horse');
 const csvParser = require('csv-parser');
 const fs = require('fs');
+const generateSireNumber = require('../utils/sireNumberGenerator');
+const generateUELN = require('../utils/uelnGenerator');
 
 // Add a single horse
 exports.addSingleHorse = async (req, res) => {
   try {
-    const horse = new Horse(req.body);
+    const { birthYear, ...rest } = req.body;
+
+    if (!birthYear) {
+      return res.status(400).json({ message: 'birthYear is required to generate SIRE number' });
+    }
+
+    const sireNumber = await generateSireNumber(birthYear);
+    const sireKey = await generateUELN(sireNumber);
+
+    const horse = new Horse({ ...rest, birthYear, sireNumber, sireKey });
+
     await horse.save();
     res.status(201).json({ message: 'Horse added successfully!', horse });
   } catch (error) {
+    console.error(error);
     res.status(400).json({ message: 'Failed to add horse', error: error.message });
   }
 };
@@ -17,18 +30,31 @@ exports.addSingleHorse = async (req, res) => {
 exports.addHorsesFromCSV = async (req, res) => {
   const filePath = req.file.path;
 
+  const rawRows = [];
   const horses = [];
+
   try {
     fs.createReadStream(filePath)
       .pipe(csvParser())
       .on('data', (row) => {
-        horses.push(row);
+        rawRows.push(row); // Collect all rows first
       })
       .on('end', async () => {
         try {
+          for (const row of rawRows) {
+            const { birthYear, ...rest } = row;
+            if (!birthYear) continue;
+
+            const sireNumber = await generateSireNumber(Number(birthYear));
+            const sireKey = await generateUELN(sireNumber);
+
+            horses.push({ ...rest, birthYear, sireNumber, sireKey });
+          }
+
           await Horse.insertMany(horses);
           res.status(201).json({ message: 'Horses added successfully!' });
         } catch (error) {
+          console.error(error);
           res.status(400).json({ message: 'Failed to add horses from CSV', error: error.message });
         } finally {
           fs.unlinkSync(filePath); // Clean up the uploaded file

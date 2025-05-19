@@ -2,25 +2,30 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 const Admin = require("../models/Admin");
+const sendWelcomeEmail = require("../services/emailService"); // Import the email service
 
 // ==============================
 // USER REGISTRATION
-
+// ==============================
 const register = async (req, res) => {
   try {
-    const { username, email, password, role = "user" } = req.body; // ✅ expect username
+    const { username, email, password, role = "user" } = req.body;
 
+    // Ensure the required fields are present
     if (!username || !email || !password) {
       return res.status(400).json({ message: "Username, email, and password are required." });
     }
 
+    // Check if the username or email already exists
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
       return res.status(400).json({ message: "Username or email already exists." });
     }
 
+    // Hash the password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Create a new user
     const newUser = new User({
       username,
       email,
@@ -30,12 +35,27 @@ const register = async (req, res) => {
 
     await newUser.save();
 
+    // Send the welcome email with the user's username and password
+    try {
+      await sendWelcomeEmail(email, username, password);  // Send username and password in email
+      console.log(`Welcome email sent to ${email}`);
+    } catch (emailError) {
+      console.error("Error sending email:", emailError.message);
+    }
+
+    // Respond with success
     res.status(201).json({ message: `User registered successfully: ${username}` });
   } catch (err) {
     console.error("Error occurred during user registration:", err);
     res.status(500).json({ message: "An error occurred during registration.", error: err.message });
   }
 };
+
+module.exports = {
+  register,
+};
+
+
 
 // ==============================
 // USER LOGIN
