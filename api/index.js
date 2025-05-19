@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 const dbConnect = require("../src/config/dbConnect");
 const { spawn } = require("child_process");
 const path = require("path");
+const dgram = require("dgram");
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +29,9 @@ app.use(
 // Middleware for parsing JSON and URL-encoded data
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ✅ Serve uploaded files (corrected path one level up from /api)
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 // Connect to the database
 (async () => {
@@ -59,7 +63,7 @@ const currentLocationRoutes = require("../src/routes/currentLocationRoute");
 const analysesRouter = require("../src/routes/analyses");
 const Userr = require("../src/routes/users");
 
-// ✅ Register API routes with /api prefix
+// Register API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/horses", horseRoutes);
@@ -76,22 +80,38 @@ app.use("/api/lieux", lieuxRouter);
 app.use("/api/contacts", contactRoutes);
 app.use("/api/current-location", currentLocationRoutes);
 app.use("/api/analyses", analysesRouter);
-app.use("/api/userr", Userr); // Consider renaming to /users if it is the same
+app.use("/api/users", Userr);
 
 // ✅ Prediction Route using Python subprocess
-app.post("/api/predict", (req, res) => {
-  const features = req.body.features;
+const udpClient = dgram.createSocket("udp4");
+let latestPredictions = [];
 
-  if (!Array.isArray(features)) {
-    return res.status(400).json({ error: "Features should be an array" });
+const pythonPath = process.env.PYTHON_PATH;
+const ESP32_IP = process.env.ESP32_IP;
+const ESP32_PORT = parseInt(process.env.ESP32_PORT);
+const NUM_FEATURES = parseInt(process.env.NUM_FEATURES);
+
+app.post("/api/predict", (req, res) => {
+  const horseEntries = req.body.horses;
+
+  if (!Array.isArray(horseEntries)) {
+    return res.status(400).json({ error: "horses should be an array of objects" });
   }
 
-  const pythonPath = "C:\\Users\\MSI\\AppData\\Local\\Programs\\Python\\Python310\\python.exe";
-  const scriptPath = path.join(__dirname, "../predict.py");
+  const isValid = horseEntries.every(
+    (entry) => Array.isArray(entry.features) && entry.features.length === NUM_FEATURES
+  );
 
+  if (!isValid) {
+    return res.status(400).json({ error: `Each horse must have ${NUM_FEATURES} numeric features` });
+  }
+
+  console.log("🐎 Received horses:", JSON.stringify(horseEntries, null, 2));
+
+  const scriptPath = path.join(__dirname, "../predict.py");
   const pythonProcess = spawn(pythonPath, [scriptPath]);
 
-  pythonProcess.stdin.write(JSON.stringify({ features }));
+  pythonProcess.stdin.write(JSON.stringify(horseEntries));
   pythonProcess.stdin.end();
 
   let dataBuffer = "";
@@ -103,35 +123,57 @@ app.post("/api/predict", (req, res) => {
 
   pythonProcess.stderr.on("data", (data) => {
     errorBuffer += data.toString();
-    console.error("🐍 Python stderr:", errorBuffer);
+    if (errorBuffer.trim()) {
+      console.error("🐍 Python stderr:", errorBuffer);
+    }
   });
 
   pythonProcess.on("close", (code) => {
-    if (code !== 0 || errorBuffer) {
+    if (code !== 0 || errorBuffer.trim()) {
+      console.error("❌ Python script failed. Code:", code);
       return res.status(500).json({
         error: "Python script failed to execute",
-        details: errorBuffer || "Unknown error",
+        details: errorBuffer.trim() || "Unknown error",
       });
     }
 
     try {
-      const result = JSON.parse(dataBuffer);
-      res.json(result);
+      const results = JSON.parse(dataBuffer);
+      latestPredictions = results;
+      res.json(results);
+
+      results.forEach(({ horse, status }) => {
+        if (["died", "euthanized"].includes(status)) {
+          const alertMessage = Buffer.from(JSON.stringify({ horse, status }));
+          udpClient.send(alertMessage, ESP32_PORT, ESP32_IP, (err) => {
+            if (err) {
+              console.error(`❌ UDP send failed for ${horse}:`, err);
+            } else {
+              console.log(`📡 Alert sent for ${horse}: ${status}`);
+            }
+          });
+        }
+      });
     } catch (err) {
       console.error("❌ Failed to parse Python output:", err);
-      res.status(500).json({ error: "Error parsing Python output" });
+      console.error("🔎 Raw Python output:", dataBuffer);
+      return res.status(500).json({ error: "Error parsing Python output" });
     }
   });
 });
 
-// Handle 404 errors
+app.get("/api/predict/latest", (req, res) => {
+  res.json(latestPredictions);
+});
+
+// Handle 404 errors (keep this LAST!)
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error("❌ An unexpected error occurred:", err.stack);
+  console.error("❌ Unexpected error:", err.stack);
   res.status(err.status || 500).json({
     message: err.message || "Internal Server Error",
   });
