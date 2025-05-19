@@ -8,7 +8,7 @@ const schedule = require("node-schedule");
 const { Parser } = require("json2csv");
 
 const Act = require("../models/Act");
-const User = require("../models/User");
+const User = require("../models/user");
 const { sendEmail, sendSMS } = require("../utils/notifications");
 
 // === Scheduling Functions ===
