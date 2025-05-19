@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const HorseController = require('../controllers/horseController');
+const HorseController = require('../controllers/HorseController');
 const Horse = require('../models/Horse');
 const User = require('../models/userModel');
 const mongoose = require('mongoose');
